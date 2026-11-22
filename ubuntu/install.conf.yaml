@@ -1,0 +1,11 @@
+- shell:
+    - description: Install tools
+      command: python3 install-packages.py
+      stdin: true
+      stdout: true
+      stderr: true
+
+- link:
+    ~/.zshrc:
+      path: ubuntu/apt/tools/zsh/.zshrc
+      create: true

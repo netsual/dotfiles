@@ -1,0 +1,11 @@
+- shell:
+    - description: Install tools
+      command: python3 install-packages.py
+      stdin: true
+      stdout: true
+      stderr: true
+
+- link:
+    ~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1:
+      path: windows/winget/tools/Microsoft.PowerShell/profile.ps1
+      create: true

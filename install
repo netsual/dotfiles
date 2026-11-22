@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
+# Run Dotbot using the current Linux distribution's configuration.
 
 set -e
 
-CONFIG="install.conf.yaml"
-DOTBOT_DIR="dotbot"
-
-DOTBOT_BIN="bin/dotbot"
+readonly DOTBOT_DIR="dotbot"
+readonly DOTBOT_BIN="bin/dotbot"
 BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly BASEDIR
+
+if [[ ! -r /etc/os-release ]]; then
+  printf '%s\n' 'Error: cannot read /etc/os-release.' >&2
+  exit 1
+fi
+# shellcheck source=/dev/null
+source /etc/os-release
+CONFIG="${ID:-}/install.conf.yaml"
+if [[ -z "${ID:-}" || ! -f "${BASEDIR}/${CONFIG}" ]]; then
+  printf 'Error: no configuration for distribution %s.\n' "${ID:-unknown}" >&2
+  exit 1
+fi
+readonly CONFIG
 
 cd "${BASEDIR}"
 git -C "${DOTBOT_DIR}" submodule sync --quiet --recursive
 git submodule update --init --recursive "${DOTBOT_DIR}"
 
-"${BASEDIR}/${DOTBOT_DIR}/${DOTBOT_BIN}" --exit-on-failure -d "${BASEDIR}" -c "${CONFIG}" "${@}"
+"${BASEDIR}/${DOTBOT_DIR}/${DOTBOT_BIN}" \
+  --exit-on-failure -d "${BASEDIR}" -c "${CONFIG}" "$@"

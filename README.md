@@ -2,20 +2,22 @@
 
 ## Contents
 
-- [PowerShell profile](powershell/profile.ps1) | prompt, completion and shortcuts
-- [Windows configuration](install.windows.conf.yaml) | PowerShell profile symlink
-- [Ubuntu configuration](install.conf.yaml)
+- [Windows configuration](windows/install.conf.yaml) and
+  [PowerShell profile](windows/winget/tools/Microsoft.PowerShell/profile.ps1)
+- [Ubuntu configuration](ubuntu/install.conf.yaml) and
+  [Zsh profile](ubuntu/apt/tools/zsh/.zshrc)
+- [Shared package installer](install-packages.py)
 - [Wallpapers](wallpaper/)
-- [Dotbot](dotbot/) | pinned submodule from the official repository
+- [Dotbot](dotbot/) (pinned official submodule)
 
 ## Requirements
 
-- Git and Python 3.8+ for Dotbot
-- Windows symlinks: Developer Mode or administrator privileges
-- Profile startup: PowerShell 7.2+ and zoxide
-- Optional shortcut tools: fzf, kubectl and code
-- Ubuntu setup: apt, sudo access and the Ubuntu universe repository enabled
-- Ubuntu profile: Zsh, fzf and zoxide (installed by `./install`)
+- Git and a working `python3` command running Python 3.10+ on both platforms
+  (a Windows Microsoft Store execution alias is not an installed interpreter)
+- Windows: winget, PowerShell 7.2+, and Developer Mode or administrator privileges
+  for symlinks
+- Ubuntu: apt, sudo access, and the universe repository already enabled
+- Optional profile shortcuts use `kubectl` and `code`; they are not installed here
 
 ## Install
 
@@ -24,13 +26,30 @@ git clone --recurse-submodules https://github.com/netsual/dotfiles.git
 cd dotfiles
 ```
 
-Windows: `.\install.ps1`
-Ubuntu: `./install`
+Windows: `./install.ps1` from PowerShell. Linux: `./install`.
+The Linux launcher selects `<distribution ID>/install.conf.yaml` from
+`/etc/os-release`; currently only the Ubuntu and Windows manifests are supplied.
 
-Ubuntu setup installs the declared distribution packages before linking the Zsh profile. Package failures stop setup; existing conflicting files or links are not overwritten. Windows setup still only links the PowerShell profile.
+Packages are installed before native configuration links are created. Package
+failures warn and continue with the next tool; configuration links still run.
+apt updates once per manager and installs tools individually. winget installs
+interactively without upgrading existing packages or automatically accepting
+agreements; an already-installed result may produce a warning.
+
+Existing conflicting files and links are not overwritten. For a checkout using
+the old `powershell/profile.ps1` or `zsh/.zshrc` paths, verify the live link's exact
+target and preserve any local content before removing only the obsolete symlink
+and rerunning the appropriate installer. Linux/WSL links need this check separately.
+No default shell changes or repository enablement are performed.
 
 ## Adding a tool
 
-Keep native configuration in a tool folder (for example, `nvim/`). For Ubuntu, add its package to the existing package command in `install.conf.yaml` and map its native configuration destination under `link`. For Windows, add configuration links to `install.windows.conf.yaml`; Windows package installation is not automated. Package-only tools need no folder. Use distribution versions by default; changes to Windows packages or tools requiring newer versions need an explicit installation decision.
+Create `<platform>/<manager>/tools/<package ID>/README.md`, using the Linux
+`os-release` ID or `windows` for the platform and the actual native package ID
+for the tool folder. Keep any native configuration in the same folder and add
+its destination explicitly under `link` in that platform's manifest.
 
-Check changed YAML and script syntax, then use disposable Dotbot fixtures to verify success, failure stopping before links, reruns and preservation of existing-file conflicts. Verify the package version and tool configuration integration on the actual target platform; Windows fixture checks do not establish Ubuntu runtime compatibility.
+The shared script reads only immediate, visible directories, ignoring symlinks
+and nested contents. Manager directories select the installation command:
+`apt` and `winget` are supported; another manager needs an explicit command case
+in `install-packages.py`. No additional package list is needed.

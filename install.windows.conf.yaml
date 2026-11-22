@@ -1,4 +1,0 @@
-- link:
-    ~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1:
-      path: powershell/profile.ps1
-      create: true

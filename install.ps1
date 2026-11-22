@@ -1,22 +1,18 @@
-$ErrorActionPreference = "Stop"
+# Run Dotbot using the Windows configuration and an existing Python 3.
+$ErrorActionPreference = 'Stop'
 
-$CONFIG = "install.windows.conf.yaml"
-$DOTBOT_DIR = "dotbot"
+$Config = 'windows/install.conf.yaml'
+$DotbotDir = 'dotbot'
+$BaseDir = $PSScriptRoot
+$DotbotBin = Join-Path $BaseDir 'dotbot/bin/dotbot'
 
-$DOTBOT_BIN = "bin/dotbot"
-$BASEDIR = $PSScriptRoot
+Set-Location -LiteralPath $BaseDir
 
-Set-Location $BASEDIR
-git -C $DOTBOT_DIR submodule sync --quiet --recursive
-git submodule update --init --recursive $DOTBOT_DIR
+git -C $DotbotDir submodule sync --quiet --recursive
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-foreach ($PYTHON in ('python', 'python3')) {
-    # Python redirects to Microsoft Store in Windows 10 when not installed
-    if (& { $ErrorActionPreference = "SilentlyContinue"
-            ![string]::IsNullOrEmpty((&$PYTHON -V))
-            $ErrorActionPreference = "Stop" }) {
-        &$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG $Args
-        return
-    }
-}
-Write-Error "Error: Cannot find Python."
+git submodule update --init --recursive $DotbotDir
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+& python3 $DotbotBin --exit-on-failure -d $BaseDir -c $Config @args
+exit $LASTEXITCODE
