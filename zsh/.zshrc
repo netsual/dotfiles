@@ -42,9 +42,14 @@ update_prompt() {
 }
 add-zsh-hook precmd update_prompt
 
-# Native tool integrations (fzf 0.48.0+); both are optional.
+# Native tool integrations; use Ubuntu's packaged fzf scripts.
 if (( $+commands[fzf] )); then
-    source <(fzf --zsh)
+    if [[ -r /usr/share/doc/fzf/examples/key-bindings.zsh ]]; then
+        source /usr/share/doc/fzf/examples/key-bindings.zsh
+    fi
+    if [[ -r /usr/share/doc/fzf/examples/completion.zsh ]]; then
+        source /usr/share/doc/fzf/examples/completion.zsh
+    fi
 fi
 
 if (( $+commands[zoxide] )); then
