@@ -14,6 +14,7 @@
 - Windows symlinks: Developer Mode or administrator privileges
 - Profile startup: PowerShell 7.2+ and zoxide
 - Optional shortcut tools: fzf, kubectl and code
+- Linux profile: Zsh; optional fzf 0.48.0+ and zoxide
 
 ## Install
 

@@ -1,1 +1,4 @@
-[]
+- link:
+    ~/.zshrc:
+      path: zsh/.zshrc
+      create: true
