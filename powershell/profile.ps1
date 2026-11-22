@@ -1,43 +1,48 @@
 #Requires -Version 7.2
+# PowerShell 7+ profile
 
-# PSReadLine
-if (Import-Module PSReadLine -PassThru -ErrorAction SilentlyContinue) {
-    Set-PSReadLineOption -EditMode Windows -PredictionSource History -PredictionViewStyle InlineView -HistoryNoDuplicates -BellStyle None
-    Set-PSReadLineOption -Colors @{ InlinePrediction = $PSStyle.Foreground.FromRgb(100, 116, 139) }
+### Modules
+Import-Module PSReadLine -ErrorAction SilentlyContinue
 
-    Set-PSReadLineKeyHandler -Chord Tab -Function MenuComplete
-    Set-PSReadLineKeyHandler -Chord Ctrl+RightArrow -Function AcceptNextSuggestionWord
-}
+### Alias
+Set-Alias -Name k -Value kubectl
+# Let the Git shortcut take precedence over PowerShell's Get-Location alias.
+Remove-Alias -Name gl -Force -ErrorAction SilentlyContinue
 
-# fzf
+### Configuration
+## PSReadLine
+# Options
+Set-PSReadLineOption -EditMode Windows -PredictionSource History -PredictionViewStyle InlineView -HistoryNoDuplicates -BellStyle None
+Set-PSReadLineOption -Colors @{ InlinePrediction = $PSStyle.Foreground.FromRgb(100, 116, 139) }
+
+# KeyHandlers
+Set-PSReadLineKeyHandler -Chord Tab -Function MenuComplete
+Set-PSReadLineKeyHandler -Chord Ctrl+RightArrow -Function AcceptNextSuggestionWord
+
+## fzf
 $env:FZF_DEFAULT_OPTS = '--height=45% --layout=reverse --border'
 
-# General
-Set-Alias -Name k -Value kubectl
-
+### Functions
+## General
 function mkcd {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path
     )
-
-    $Directory = New-Item -ItemType Directory -Path $Path -Force
-    Set-Location -LiteralPath $Directory.FullName
+    Set-Location -LiteralPath $(New-Item -ItemType Directory -Path $Path -Force).FullName
 }
-
 function Edit-Profile { code $PROFILE }
+
+## fzf
 function ff { fzf '--walker=file,hidden' '--walker-skip=.git,node_modules,bin,obj,.venv' @args }
 
-# Git shortcuts bind subcommands, so they need functions rather than aliases.
+## Git
 function gs { git status --short --branch @args }
 function gd { git diff @args }
 function gds { git diff --staged @args }
-
-# PowerShell's built-in gl alias otherwise takes precedence over the function.
-Remove-Alias -Name gl -Force -ErrorAction SilentlyContinue
 function gl { git log --oneline --graph --decorate -15 @args }
 
-# Kubernetes
+## Kubectl
 function kctx { kubectl config current-context }
 function kns {
     param(
@@ -48,9 +53,9 @@ function kns {
     kubectl config set-context --current "--namespace=$Name"
 }
 
-# Prompt
+### Prompt
 function prompt {
-    # Save both statuses before Git runs. Variable names are case-insensitive.
+    # Capture status before running Git.
     $LastCommandWasSuccessful = $?
     $SavedExitCode = $global:LASTEXITCODE
 
@@ -63,84 +68,59 @@ function prompt {
         Reset   = $PSStyle.Reset
     }
 
-    # Shorten home without replacing similar path prefixes.
+    # Shorten the home directory without replacing similar path prefixes.
     $Path = $PWD.Path -replace "^$([regex]::Escape($HOME))(?=[\\/]|$)", '~'
-    $GitPromptText = ''
 
-    try {
-        if ($PWD.Provider.Name -eq 'FileSystem' -and (Get-Command git -ErrorAction Ignore)) {
-            $GitStatus = @(git status --porcelain=v2 --branch --show-stash --untracked-files=normal 2>$null)
+    if ($PWD.Provider.Name -eq 'FileSystem' -and (Get-Command git -ErrorAction Ignore)) {
+        $GitStatus = @(git status --porcelain=v2 --branch --show-stash --untracked-files=normal 2>$null)
 
-            if ($LASTEXITCODE -eq 0) {
-                $Branch = ''
-                $Staged = $Modified = $Untracked = $Conflicts = 0
-                $Ahead = $Behind = $Stash = 0
+        if ($LASTEXITCODE -eq 0) {
+            $Branch = ''
+            $Staged = $Modified = $Untracked = $Conflicts = 0
+            $Ahead = $Behind = $Stash = 0
 
-                foreach ($Line in $GitStatus) {
-                    if ($Line.StartsWith('# branch.head ')) {
-                        $Branch = $Line.Substring(14)
-                    }
-                    elseif ($Line -match '^# branch\.ab \+(\d+) -(\d+)$') {
-                        $Ahead = [int]$Matches[1]
-                        $Behind = [int]$Matches[2]
-                    }
-                    elseif ($Line -match '^# stash (\d+)$') {
-                        $Stash = [int]$Matches[1]
-                    }
-                    elseif ($Line[0] -in '1', '2') {
-                        if ($Line[2] -ne '.') {
-                            $Staged++
-                        }
-                        if ($Line[3] -ne '.') {
-                            $Modified++
-                        }
-                    }
-                    elseif ($Line[0] -eq 'u') {
-                        $Conflicts++
-                    }
-                    elseif ($Line[0] -eq '?') {
-                        $Untracked++
-                    }
+            foreach ($Line in $GitStatus) {
+                if ($Line.StartsWith('# branch.head ')) {
+                    $Branch = $Line.Substring(14)
                 }
-
-                $Branch = $Branch -eq '(detached)' ? 'detached' : $Branch
-                $GitPromptText = " $($Colors.Muted)· $($Colors.Accent)$Branch$($Colors.Reset)"
-
-                if ($Staged) {
-                    $GitPromptText += " $($Colors.Accent)+$Staged"
+                elseif ($Line -match '^# branch\.ab \+(\d+) -(\d+)$') {
+                    $Ahead = [int]$Matches[1]
+                    $Behind = [int]$Matches[2]
                 }
-                if ($Modified) {
-                    $GitPromptText += " $($Colors.Warning)~$Modified"
+                elseif ($Line -match '^# stash (\d+)$') {
+                    $Stash = [int]$Matches[1]
                 }
-                if ($Untracked) {
-                    $GitPromptText += " $($Colors.Muted)?$Untracked"
+                elseif ($Line[0] -in '1', '2') {
+                    if ($Line[2] -ne '.') { $Staged++ }
+                    if ($Line[3] -ne '.') { $Modified++ }
                 }
-                if ($Conflicts) {
-                    $GitPromptText += " $($Colors.Error)!$Conflicts"
-                }
-                if ($Ahead) {
-                    $GitPromptText += " $($Colors.Muted)↑$Ahead"
-                }
-                if ($Behind) {
-                    $GitPromptText += " $($Colors.Muted)↓$Behind"
-                }
-                if ($Stash) {
-                    $GitPromptText += " $($Colors.Muted)≡$Stash"
-                }
-
-                $GitPromptText += $Colors.Reset
+                elseif ($Line[0] -eq 'u') { $Conflicts++ }
+                elseif ($Line[0] -eq '?') { $Untracked++ }
             }
+
+            $Branch = $Branch -eq '(detached)' ? 'detached' : $Branch
+            $GitPromptText = " $($Colors.Muted)· $($Colors.Accent)$Branch$($Colors.Reset)"
+
+            if ($Staged) { $GitPromptText += " $($Colors.Accent)+$Staged" }
+            if ($Modified) { $GitPromptText += " $($Colors.Warning)~$Modified" }
+            if ($Untracked) { $GitPromptText += " $($Colors.Muted)?$Untracked" }
+            if ($Conflicts) { $GitPromptText += " $($Colors.Error)!$Conflicts" }
+            if ($Ahead) { $GitPromptText += " $($Colors.Muted)↑$Ahead" }
+            if ($Behind) { $GitPromptText += " $($Colors.Muted)↓$Behind" }
+            if ($Stash) { $GitPromptText += " $($Colors.Muted)≡$Stash" }
+
+            $GitPromptText += $Colors.Reset
         }
-    }
-    finally {
-        $global:LASTEXITCODE = $SavedExitCode
+        else {
+            $GitPromptText = ''
+        }
     }
 
     $IndicatorColor = $LastCommandWasSuccessful ? $Colors.Accent : $Colors.Error
+    $global:LASTEXITCODE = $SavedExitCode
+
     "$($Colors.Path)$Path$($Colors.Reset)$GitPromptText`n${IndicatorColor}❯$($Colors.Reset) "
 }
 
-# Zoxide
-if (Get-Command zoxide -ErrorAction Ignore) {
-    Invoke-Expression (zoxide init --hook pwd powershell | Out-String)
-}
+### Zoxide
+Invoke-Expression (& { zoxide init --hook pwd powershell | Out-String })
