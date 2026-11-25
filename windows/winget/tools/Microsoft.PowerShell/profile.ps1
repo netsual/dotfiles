@@ -18,6 +18,39 @@ Set-PSReadLineOption -Colors @{ InlinePrediction = $PSStyle.Foreground.FromRgb(1
 # KeyHandlers
 Set-PSReadLineKeyHandler -Chord Tab -Function MenuComplete
 Set-PSReadLineKeyHandler -Chord Ctrl+RightArrow -Function AcceptNextSuggestionWord
+if (Get-Command fzf -CommandType Application -ErrorAction Ignore) {
+    Set-PSReadLineKeyHandler -Chord Ctrl+r -ScriptBlock {
+        $SavedExitCode = $global:LASTEXITCODE
+        try {
+            $History = [Microsoft.PowerShell.PSConsoleReadLine]::GetHistoryItems()
+            $Candidates = @(
+                for ($Index = $History.Count - 1; $Index -ge 0; $Index--) {
+                    # Flatten only the display; restore the original command below.
+                    "$Index`t$($History[$Index].CommandLine -replace '[\r\n]+', ' ↵ ')"
+                }
+            )
+            if ($Candidates.Count -eq 0) { return }
+
+            $Selection = $Candidates |
+                fzf --no-sort --no-multi --delimiter "`t" --with-nth '2..'
+
+            if ($LASTEXITCODE -eq 0 -and $Selection) {
+                $Index = [int]($Selection -split "`t", 2)[0]
+                $Line = ''
+                $Cursor = 0
+                [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState(
+                    [ref]$Line, [ref]$Cursor
+                )
+                [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+                    0, $Line.Length, $History[$Index].CommandLine
+                )
+            }
+        }
+        finally {
+            $global:LASTEXITCODE = $SavedExitCode
+        }
+    }
+}
 
 ## fzf
 $env:FZF_DEFAULT_OPTS = '--height=45% --layout=reverse --border'
